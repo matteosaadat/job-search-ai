@@ -1,0 +1,2 @@
+{"id": "OUT-1B2A1EA6", "type": "response", "text": "Hi! I can see your message. The pipeline works \u2014 the issue is jh_chat_listen is looking at the wrong path. Fixing it now.", "ts": "2026-05-31T11:48:53.156911"}
+{"id": "OUT-690CE365", "type": "done", "text": "Done", "ts": "2026-05-31T11:48:55.611655"}

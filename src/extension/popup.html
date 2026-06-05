@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 340px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      background: #0f1117;
+      color: #e0e0e0;
+    }
+    header {
+      padding: 10px 14px;
+      border-bottom: 1px solid #222;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo { font-weight: 700; font-size: 14px; color: #7c3aed; }
+    .logo-sub { font-size: 11px; color: #555; }
+
+    .url-bar {
+      font-size: 10px; color: #444;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      padding: 5px 14px; border-bottom: 1px solid #1a1a1a;
+    }
+
+    .content { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+    .badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .badge { font-size: 11px; font-weight: 600; border-radius: 4px; padding: 3px 7px; }
+    .badge-ok   { background: #14532d44; color: #86efac; border: 1px solid #166534; }
+    .badge-warn { background: #78350f44; color: #fcd34d; border: 1px solid #92400e; }
+    .badge-link { background: #1e3a5f44; color: #93c5fd; border: 1px solid #1d4ed8; display: none; }
+
+    .preview-box {
+      background: #1a1d27;
+      border: 1px solid #2e3250;
+      border-radius: 6px;
+      padding: 9px 10px;
+      max-height: 160px;
+      overflow-y: auto;
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .preview-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: inherit;
+      font-size: 11px;
+      margin: 0;
+    }
+    .link-list { margin-top: 8px; border-top: 1px solid #2e3250; padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+    .link-item { font-size: 10px; color: #6366f1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .type-row { display: flex; gap: 6px; }
+    .type-btn {
+      flex: 1; padding: 6px;
+      border: 1px solid #2a2a2a; background: #151520; color: #888;
+      border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.15s;
+    }
+    .type-btn:hover { border-color: #555; color: #ccc; }
+    .type-btn.active { border-color: #7c3aed; color: #c4b5fd; background: #1e1030; }
+
+    .capture-btn {
+      width: 100%; padding: 9px;
+      background: #7c3aed; color: white;
+      border: none; border-radius: 6px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .capture-btn:hover:not(:disabled) { background: #6d28d9; }
+    .capture-btn:active:not(:disabled) { background: #5b21b6; transform: scale(0.98); }
+    .capture-btn:disabled { background: #2a2a2a; color: #555; cursor: default; }
+
+    .result { padding: 8px 10px; border-radius: 6px; font-size: 12px; line-height: 1.6; display: none; }
+    .result.ok  { background: #14532d33; color: #86efac; border: 1px solid #166534; }
+    .result.err { background: #450a0a33; color: #fca5a5; border: 1px solid #7f1d1d; }
+    .result-id  { font-weight: 700; font-family: monospace; }
+    .result-sub { font-size: 11px; opacity: 0.7; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">Job Hunt</span>
+  <span class="logo-sub">capture</span>
+</header>
+
+<div class="url-bar" id="page-url">Loading…</div>
+
+<div class="content">
+  <div class="badges">
+    <span class="badge badge-warn" id="sel-badge">Checking…</span>
+    <span class="badge badge-link" id="link-badge"></span>
+  </div>
+
+  <div class="preview-box" id="preview">
+    <span style="color:#555">Loading page…</span>
+  </div>
+
+  <div class="type-row">
+    <button class="type-btn active" id="btn-single">Single JD</button>
+    <button class="type-btn"        id="btn-list">Job List</button>
+  </div>
+
+  <button class="capture-btn" id="capture-btn" disabled>Capture Selection</button>
+
+  <div class="result" id="result"></div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Hunt</title>
+  <link rel="stylesheet" href="/static/jh.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+<header>
+  <span class="logo">Job Hunt</span>
+  <span class="spacer"></span>
+  <span class="status-dot" id="conn-dot"></span>
+  <span class="status-label" id="conn-label">connecting…</span>
+  <button class="btn btn-ghost btn-sm" id="reset-btn" onclick="resetConnection()" title="Reset connection — reconnects to Claude and clears any stuck state">Reset</button>
+  <button class="chat-toggle-btn" onclick="toggleChat()" title="Toggle chat">💬</button>
+</header>
+
+<nav>
+  <button class="nav-btn active" onclick="switchTab('home')">Dashboard</button>
+  <button class="nav-btn" onclick="switchTab('jobs')">
+    Jobs <span class="badge yellow" id="badge-whitelisted">0</span>
+  </button>
+  <button class="nav-btn" onclick="switchTab('applications')">Applications</button>
+  <button class="nav-btn" onclick="switchTab('companies')">Companies</button>
+  <button class="nav-btn" onclick="switchTab('strategy')">Strategy</button>
+  <button class="nav-btn" onclick="switchTab('resumes')">Resumes</button>
+  <button class="nav-btn" onclick="switchTab('settings')">Settings</button>
+</nav>
+
+<div class="app-body">
+<main>
+
+  <!-- ═══ DASHBOARD ═══ -->
+  <div class="tab-panel active" id="panel-home">
+    <div class="section-header">
+      <h2>Job Hunt Dashboard</h2>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" onclick="loadHome()">↻ Refresh</button>
+    </div>
+
+    <div class="stats-grid" id="home-stats">
+      <div class="stat-card"><div class="stat-label">Raw JDs</div><div class="stat-value blue" id="stat-raw">—</div></div>
+      <div class="stat-card"><div class="stat-label">Digested</div><div class="stat-value yellow" id="stat-digested">—</div></div>
+      <div class="stat-card"><div class="stat-label">Whitelisted</div><div class="stat-value green" id="stat-whitelisted">—</div></div>
+      <div class="stat-card"><div class="stat-label">Applications</div><div class="stat-value purple" id="stat-applied">—</div></div>
+      <div class="stat-card" id="stat-card-followup" style="cursor:pointer" onclick="switchTab('applications')"><div class="stat-label">Follow-ups Due</div><div class="stat-value red" id="stat-followup">—</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="switchTab('companies')"><div class="stat-label">Companies</div><div class="stat-value blue" id="stat-companies">—</div></div>
+    </div>
+    <div id="followup-alert" style="display:none;margin-bottom:12px"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card">
+        <div class="card-title">Pipeline</div>
+        <div id="home-pipeline"><div class="loading">Loading…</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Quick Actions</div>
+        <div id="home-actions">
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+            <button class="btn btn-primary" onclick="openChat('ingest job')">+ Capture Job Description</button>
+            <button class="btn btn-ghost" onclick="openChat('ingest chip')">+ Add Truth Chip</button>
+            <button class="btn btn-ghost" onclick="openChat('what needs follow-up today?')">? Follow-up Due</button>
+            <button class="btn btn-ghost" onclick="openChat('what jobs am I targeting?')">→ View Targets</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ JOBS ═══ -->
+  <div class="tab-panel fill" id="panel-jobs">
+    <div class="two-pane">
+
+      <div class="pane-sidebar" id="jobs-sidebar">
+        <div class="loading" style="padding:16px;font-size:12px">Loading…</div>
+      </div>
+
+      <div class="pane-content" id="jobs-content">
+        <div class="empty"><h3>Select a job</h3><p>Choose a job from the pipeline on the left.</p></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ APPLICATIONS ═══ -->
+  <div class="tab-panel fill" id="panel-applications">
+    <div class="two-pane">
+
+      <div class="pane-sidebar" id="apps-sidebar">
+        <div class="loading" style="padding:16px;font-size:12px">Loading…</div>
+      </div>
+
+      <div class="pane-content" id="apps-content">
+        <div class="empty"><h3>Select an application</h3><p>Choose an application from the list on the left.</p></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ COMPANIES ═══ -->
+  <div class="tab-panel fill" id="panel-companies">
+    <div class="two-pane">
+
+      <div class="pane-sidebar" id="companies-sidebar">
+        <div class="loading" style="padding:16px;font-size:12px">Loading…</div>
+      </div>
+
+      <div class="pane-content" id="companies-content">
+        <div class="empty"><h3>Select a company</h3><p>Companies are auto-created when jobs are ingested.</p></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ STRATEGY ═══ -->
+  <div class="tab-panel fill" id="panel-strategy">
+    <div class="two-pane">
+
+      <div class="pane-sidebar" id="strategy-sidebar">
+        <div class="loading" style="padding:16px;font-size:12px">Loading…</div>
+      </div>
+
+      <div class="pane-content" id="strategy-content">
+        <div class="empty">
+          <h3>Strategy Documents</h3>
+          <p>Select a document from the left, or generate them from the chat.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ RESUMES ═══ -->
+  <div class="tab-panel fill" id="panel-resumes">
+    <div class="two-pane">
+
+      <div class="pane-sidebar" id="resumes-sidebar">
+        <div class="loading" style="padding:16px;font-size:12px">Loading…</div>
+      </div>
+
+      <div class="pane-content" id="resumes-content">
+        <div class="empty"><h3>Select a resume</h3><p>Choose a group from the left to preview.</p></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ SETTINGS ═══ -->
+  <div class="tab-panel" id="panel-settings">
+    <div class="section-header">
+      <h2>Settings</h2>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" onclick="loadSettings()">↻ Reload</button>
+    </div>
+    <div id="settings-content"><div class="loading">Loading…</div></div>
+  </div>
+
+</main>
+
+  <!-- ═══ CHAT PANEL ═══ -->
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-header">
+      <span class="chat-title">Claude</span>
+      <div class="chat-status">
+        <span class="chat-status-dot" id="chat-status-dot"></span>
+        <span class="chat-status-text" id="chat-status-text">ready</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="clearChat()">Clear</button>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-area">
+      <div id="chat-batch-hint" class="chat-batch-hint" style="display:none"></div>
+      <div>
+        <textarea id="chat-input" placeholder="Ask Claude, or paste job listings to ingest as a batch…" rows="2"
+          onkeydown="chatKeydown(event)" oninput="detectBatch(this)"></textarea>
+        <button class="btn btn-primary btn-sm" id="chat-send-btn" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end app-body -->
+
+<div id="toast"></div>
+
+<script>
+const API = '';
+let _activeJobId = null;
+let _activeAppId = null;
+let _activeCompany = null;
+let _jobsData = null;
+
+// ── Utils ────────────────────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function toast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show ' + type;
+  clearTimeout(el._t); el._t = setTimeout(() => el.className = '', 2600);
+}
+
+async function api(method, path, body=null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  const labels = ['home','jobs','applications','companies','strategy','resumes','settings'];
+  const btns = document.querySelectorAll('.nav-btn');
+  btns[labels.indexOf(name)]?.classList.add('active');
+  history.pushState({}, '', '/' + (name === 'home' ? '' : name));
+  ({ home: loadHome, jobs: loadJobs, applications: loadApplications,
+     companies: loadCompanies, strategy: loadStrategy, resumes: loadResumes, settings: loadSettings })[name]?.();
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+async function loadHome() {
+  try {
+    const [stats, companies, apps, followups] = await Promise.all([
+      api('GET', '/api/jobs/stats'),
+      api('GET', '/api/companies'),
+      api('GET', '/api/applications?status=active').catch(() => ({ applications: [] })),
+      api('GET', '/api/applications/followups').catch(() => ({ overdue: [], due_today: [], count: 0 })),
+    ]);
+    document.getElementById('stat-raw').textContent         = stats.raw || 0;
+    document.getElementById('stat-digested').textContent    = stats.digested || 0;
+    document.getElementById('stat-whitelisted').textContent = stats.whitelisted || 0;
+    document.getElementById('stat-applied').textContent     = apps.applications?.length || 0;
+    document.getElementById('stat-companies').textContent   = companies.companies?.length || 0;
+    document.getElementById('badge-whitelisted').textContent = stats.whitelisted || 0;
+
+    const fuCount = followups.count || 0;
+    document.getElementById('stat-followup').textContent = fuCount;
+    const fuCard = document.getElementById('stat-card-followup');
+    fuCard.style.borderColor = fuCount > 0 ? 'var(--red)' : '';
+
+    const alertEl = document.getElementById('followup-alert');
+    const overdueItems = followups.overdue || [];
+    const todayItems = followups.due_today || [];
+    if (overdueItems.length || todayItems.length) {
+      const rows = [...overdueItems.map(a =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px"><span style="color:var(--red);font-weight:600">OVERDUE ${a.days_overdue}d</span> — ${esc(a.title||a.job_id)} @ ${esc(a.company||'')}</span>
+          <button class="btn btn-ghost btn-sm" onclick="openChat('follow up on ${esc(a.job_id)}')">→ Follow up</button>
+        </div>`),
+      ...todayItems.map(a =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px"><span style="color:var(--yellow);font-weight:600">TODAY</span> — ${esc(a.title||a.job_id)} @ ${esc(a.company||'')}</span>
+          <button class="btn btn-ghost btn-sm" onclick="openChat('follow up on ${esc(a.job_id)}')">→ Follow up</button>
+        </div>`)].join('');
+      alertEl.style.display = 'block';
+      alertEl.innerHTML = `<div class="card" style="border-color:var(--red)">
+        <div class="card-title" style="color:var(--red)">Follow-ups Due (${fuCount})</div>${rows}</div>`;
+    } else {
+      alertEl.style.display = 'none';
+    }
+
+    const pEl = document.getElementById('home-pipeline');
+    const stages = [
+      { label: 'Raw',         count: stats.raw || 0,         color: 'blue' },
+      { label: 'Digested',    count: stats.digested || 0,    color: 'yellow' },
+      { label: 'Whitelisted', count: stats.whitelisted || 0, color: 'green' },
+      { label: 'Archived',    count: stats.archived || 0,    color: 'red' },
+    ];
+    pEl.innerHTML = stages.map(s =>
+      `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:13px;color:var(--text2)">${esc(s.label)}</span>
+        <span style="font-size:18px;font-weight:700;color:var(--${s.color})">${s.count}</span>
+      </div>`
+    ).join('');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── JOBS ─────────────────────────────────────────────────────────────────────
+let _batchesData = null;
+let _jobsFilter = 'all';
+let _jobsView   = 'active'; // 'active' | 'archived'
+let _activeBatchId = null;
+let _batchFilter   = 'all';
+
+// ── Bucket helpers ───────────────────────────────────────────────────────────
+const _BUCKET_LABELS = { pursue:'Pursue', research:'Research', watch:'Watch', pass:'Pass', suspect:'Suspect', signal_play:'Signal', intelligence:'Intel' };
+const _BUCKET_COLORS = { pursue:'green', research:'blue', watch:'yellow', pass:'text3', suspect:'red', signal_play:'purple', intelligence:'purple' };
+
+function _bucketLabel(b) { return _BUCKET_LABELS[b] || b; }
+function _bucketCss(b)   { return _BUCKET_COLORS[b] || 'text3'; }
+
+function _signalChips(signals) {
+  if (!signals) return '';
+  const chips = [];
+  if (signals.easy_apply === true)  chips.push('<span class="sig-chip sig-easy">Easy Apply</span>');
+  if (signals.easy_apply === false) chips.push('<span class="sig-chip sig-hard">Hard Apply</span>');
+  if (signals.applicant_count != null) {
+    const n = parseInt(signals.applicant_count);
+    const cls = n > 100 ? 'sig-hi' : n > 50 ? 'sig-med' : 'sig-lo';
+    chips.push(`<span class="sig-chip ${cls}">${n} applicants</span>`);
+  }
+  if (signals.days_since_posted != null) {
+    const d = parseInt(signals.days_since_posted);
+    const cls = d <= 2 ? 'sig-fresh' : d <= 7 ? 'sig-recent' : d <= 30 ? 'sig-aging' : 'sig-stale';
+    const lbl = d === 0 ? 'Today' : d === 1 ? '1d ago' : `${d}d ago`;
+    chips.push(`<span class="sig-chip ${cls}">${lbl}</span>`);
+  }
+  return chips.join('');
+}
+
+async function setBucket(jobId, bucket, refreshBatch) {
+  try {
+    await api('PATCH', `/api/jobs/${jobId}/bucket`, { bucket });
+    if (refreshBatch && _activeBatchId) viewBatch(_activeBatchId);
+    else { await loadJobs(); }
+    toast(`→ ${_bucketLabel(bucket)}`, 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function tagCompany(slug, company, tag) {
+  try {
+    await api('POST', '/api/companies/tag', { company, company_slug: slug, tag });
+    if (_activeBatchId) viewBatch(_activeBatchId);
+    toast(`${company} → ${tag.replace('_',' ')}`, 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function showCompanyTagMenu(e, slug, company) {
+  e.preventDefault(); e.stopPropagation();
+  const tags = ['preferred','suspect','resume_farmer','slow_process','blacklisted'];
+  const menu = document.getElementById('ctx-menu');
+  menu.innerHTML = `<div style="padding:4px 10px 2px;font-size:10px;color:var(--text3);font-weight:700;letter-spacing:.4px">TAG COMPANY</div>
+    <div style="padding:2px 10px 4px;font-size:11px;color:var(--text2)">${esc(company)}</div>
+    <div class="ctx-sep"></div>
+    ${tags.map(t => `<div class="ctx-item${t==='blacklisted'?' danger':t==='preferred'?' success':''}" onclick="_hideCtx();tagCompany('${esc(slug)}','${esc(company)}','${t}')">${t.replace(/_/g,' ')}</div>`).join('')}`;
+  const x = Math.min(e.clientX, window.innerWidth - 170);
+  const y = Math.min(e.clientY, window.innerHeight - tags.length * 34 - 50);
+  menu.style.left = x+'px'; menu.style.top = y+'px'; menu.style.display = 'block';
+}
+
+async function loadJobs() {
+  try {
+    [_jobsData, _batchesData] = await Promise.all([
+      api('GET', '/api/jobs'),
+      api('GET', '/api/jobs/batches').catch(() => ({ batches: [] })),
+    ]);
+    renderJobsSidebar();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function _jobLabel(j) {
+  if (j.title && j.company) return `${j.title} @ ${j.company}`;
+  if (j.title) return j.title;
+  if (j.company) return j.company;
+  return j.id;
+}
+
+function _jobDisplayName(j) {
+  if (j.title && j.company) return `${j.title} @ ${j.company}`;
+  if (j.title) return j.title;
+  if (j.company) return j.company;
+  const m = j.id?.match(/job_(\d{4})(\d{2})(\d{2})/);
+  if (m) {
+    const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2]-1];
+    return `Uncategorized JD · ${mo} ${+m[3]}`;
+  }
+  return j.id;
+}
+
+function _sourceLabel(src) {
+  const m = { linkedin: 'LinkedIn', indeed: 'Indeed', email: 'Email', paste: 'Pasted',
+               direct: 'Direct', recruiter: 'Recruiter', ziprecruiter: 'ZipRecruiter', web: 'Web' };
+  return m[(src || '').toLowerCase()] || src || null;
+}
+
+function _salaryShort(j) {
+  const raw = j.salary_stated || j.rate_stated;
+  if (!raw) return null;
+  return String(raw)
+    .replace(/,000/g, 'k')
+    .replace(/\s*USD\s*/gi, '')
+    .replace(/ - |-/, '–')
+    .trim();
+}
+
+function _locationShort(j) {
+  const pol = (j.remote_policy || '').toLowerCase();
+  if (pol === 'remote') return 'Remote';
+  const parts = [];
+  if (j.remote_policy) parts.push(j.remote_policy.charAt(0).toUpperCase() + j.remote_policy.slice(1));
+  if (j.location) parts.push(j.location);
+  return parts.join(' · ') || null;
+}
+
+// ── Selection ────────────────────────────────────────────────────────────────
+let _selectedJobs  = new Set();
+let _lastClickIdx  = -1;
+let _sortedJobList = [];   // current visible order, for range selection
+
+function handleJobSelect(e, jobId, idx) {
+  e.stopPropagation();
+  e.preventDefault();   // we manage checked state ourselves on re-render
+  if (e.shiftKey && _lastClickIdx >= 0) {
+    const lo = Math.min(_lastClickIdx, idx);
+    const hi = Math.max(_lastClickIdx, idx);
+    for (let i = lo; i <= hi; i++) {
+      const id = _sortedJobList[i]?.id;
+      if (id) _selectedJobs.add(id);
+    }
+    // anchor stays at _lastClickIdx
+  } else {
+    if (_selectedJobs.has(jobId)) _selectedJobs.delete(jobId);
+    else _selectedJobs.add(jobId);
+    _lastClickIdx = idx;
+  }
+  renderJobsSidebar();
+}
+
+// ── Context menu ─────────────────────────────────────────────────────────────
+let _jobsById = {};
+
+function _hideCtx() { document.getElementById('ctx-menu').style.display = 'none'; }
+
+function showJobCtx(e, jobId) {
+  e.preventDefault();
+  e.stopPropagation();
+  const j = _jobsById[jobId];
+  if (!j) return;
+  const id = esc(jobId);
+  const it = (label, cmd, cls='') =>
+    `<div class="ctx-item ${cls}" onclick="_hideCtx();triggerChat('${cmd}')">${label}</div>`;
+
+  // If right-clicked job is in the selection, operate on all selected jobs; otherwise just this one.
+  const targetIds = (_selectedJobs.has(jobId) && _selectedJobs.size > 1)
+    ? [..._selectedJobs]
+    : [jobId];
+  const multi = targetIds.length > 1;
+
+  const rows = [];
+  if (!multi && j.source_url)
+    rows.push(`<a class="ctx-item" href="${esc(j.source_url)}" target="_blank" onclick="_hideCtx()">🔗 Open original posting</a>`);
+  rows.push('<div class="ctx-sep"></div>');
+  if (!multi) {
+    if (j.stage === 'raw')
+      rows.push(it('⚙ Digest JD', `digest ${id}`));
+    if (j.stage === 'digested') {
+      rows.push(it('⚡ Score', `score job ${id}`));
+      rows.push(it('✓ Whitelist', `whitelist job ${id}`, 'success'));
+    }
+    if (j.stage === 'whitelisted') {
+      rows.push(it('📄 Generate Package', `generate application package for ${id}`));
+      rows.push(it('📝 Interview Prep', `generate interview prep for ${id}`));
+    }
+  }
+  const addHandles = targetIds.map(tid => esc(tid)).join(' ');
+  rows.push(`<div class="ctx-item" onclick="_hideCtx();addToChat('${addHandles}')">+ Add to Chat${multi ? ` (${targetIds.length})` : ''}</div>`);
+  rows.push('<div class="ctx-sep"></div>');
+  const archiveLabel = multi ? `✕ Archive (${targetIds.length})` : '✕ Archive';
+  const restoreLabel = multi ? `↩ Restore (${targetIds.length})` : '↩ Restore';
+  const archiveCall = multi
+    ? `directArchive(['${targetIds.join("','")}'])`
+    : `directArchive('${id}')`;
+  const restoreCall = `directUnarchive('${id}')`;
+  if (j.stage !== 'archived')
+    rows.push(`<div class="ctx-item danger" onclick="_hideCtx();${archiveCall}">${archiveLabel}</div>`);
+  else
+    rows.push(`<div class="ctx-item" onclick="_hideCtx();${restoreCall}">${restoreLabel}</div>`);
+
+  const menu = document.getElementById('ctx-menu');
+  menu.innerHTML = rows.join('');
+  const x = Math.min(e.clientX, window.innerWidth - 185);
+  const y = Math.min(e.clientY, window.innerHeight - rows.length * 34);
+  menu.style.left = x + 'px';
+  menu.style.top  = y + 'px';
+  menu.style.display = 'block';
+}
+
+document.addEventListener('click', _hideCtx);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') _hideCtx(); });
+
+function _jobTooltip(j) {
+  const lines = [`ID: ${j.id}`];
+  if (j.modified) lines.push(`Added: ${j.modified}`);
+  if (j.source) lines.push(`Source: ${_sourceLabel(j.source) || j.source}${j.source_url ? ' — ' + j.source_url : ''}`);
+  if (j.location) lines.push(`Location: ${j.location}`);
+  if (j.remote_policy) lines.push(`Remote: ${j.remote_policy}`);
+  if (j.score != null) lines.push(`Score: ${j.score} → ${j.recommendation}`);
+  else lines.push('Not yet scored');
+  return lines.join('\n');
+}
+
+function setJobsFilter(f) {
+  _jobsFilter = f;
+  renderJobsSidebar();
+}
+
+function setJobsView(v) {
+  _jobsView = v;
+  _jobsFilter = 'all';
+  renderJobsSidebar();
+}
+
+function renderJobsSidebar() {
+  const sidebar = document.getElementById('jobs-sidebar');
+  const batches = _batchesData?.batches || [];
+
+  // Flatten all jobs, deduplicate by ID keeping the highest-stage version
+  // (a job copied to both raw/ and digested/ should only show the digested version)
+  const all = _jobsData || {};
+  const stagePriority = { whitelisted: 4, digested: 3, raw: 2, archived: 1 };
+  const byId = {};
+  for (const [stage, list] of Object.entries(all)) {
+    for (const j of (list || [])) {
+      const ex = byId[j.id];
+      if (!ex || (stagePriority[stage] || 0) > (stagePriority[ex.stage] || 0)) {
+        byId[j.id] = {...j, stage};
+      }
+    }
+  }
+  let allJobs = Object.values(byId);
+  _jobsById = Object.fromEntries(allJobs.map(j => [j.id, j]));
+
+  const activeJobs   = allJobs.filter(j => j.stage !== 'archived');
+  const archivedJobs = allJobs.filter(j => j.stage === 'archived');
+  const viewJobs = _jobsView === 'archived' ? archivedJobs : activeJobs;
+
+  const viewToggle = `<div class="jobs-view-toggle">
+    <button class="view-btn${_jobsView === 'active' ? ' active' : ''}" onclick="setJobsView('active')">Active <span class="view-count">${activeJobs.length}</span></button>
+    <button class="view-btn${_jobsView === 'archived' ? ' active' : ''}" onclick="setJobsView('archived')">Archived <span class="view-count">${archivedJobs.length}</span></button>
+  </div>`;
+
+  // Filter bar — active view only
+  let filterBar = '';
+  if (_jobsView === 'active') {
+    const incompleteCount = viewJobs.filter(j => j.score == null).length;
+    const applyCount   = viewJobs.filter(j => j.recommendation === 'apply').length;
+    const monitorCount = viewJobs.filter(j => j.recommendation === 'monitor').length;
+    const stretchCount = viewJobs.filter(j => j.recommendation === 'stretch').length;
+    const pill = (f, label, extra='', tip='') => {
+      const active = _jobsFilter === f ? ' active' + (extra ? ` ${extra}` : '') : (extra ? ` ${extra}` : '');
+      return `<button class="filter-pill${active}" onclick="setJobsFilter('${f}')"${tip ? ` title="${tip}"` : ''}>${label}</button>`;
+    };
+    filterBar = `<div class="jobs-filter-bar">
+      ${pill('all',        `All ${viewJobs.length}`,         '',       'Show all active jobs')}
+      ${incompleteCount ? pill('incomplete', `⚠ ${incompleteCount}`, 'warn',   `${incompleteCount} job${incompleteCount>1?'s':''} not yet scored — digest first, then score`) : ''}
+      ${applyCount   ? pill('apply',    `Apply ${applyCount}`,     'green',  'Claude recommends applying')    : ''}
+      ${monitorCount ? pill('monitor',  `Monitor ${monitorCount}`, 'yellow', 'Worth watching, not applying yet') : ''}
+      ${stretchCount ? pill('stretch',  `Stretch ${stretchCount}`, 'orange', 'Ambitious reach — possible mismatch') : ''}
+    </div>`;
+  }
+
+  // Apply filter
+  let jobs = viewJobs;
+  if (_jobsView === 'active') {
+    if (_jobsFilter === 'incomplete') jobs = viewJobs.filter(j => j.score == null);
+    else if (_jobsFilter !== 'all')   jobs = viewJobs.filter(j => j.recommendation === _jobsFilter);
+  }
+
+  // Sort: real score desc, then pursuit score desc, then unscored last
+  const scored   = jobs.filter(j => j.score != null).sort((a, b) => b.score - a.score);
+  const unscored = jobs.filter(j => j.score == null).sort((a, b) => (b.pursuit_score || 0) - (a.pursuit_score || 0));
+  const sorted   = [...scored, ...unscored];
+  _sortedJobList = sorted;
+
+  const batchesHtml = `
+    <div class="pipeline-group" style="border-top:1px solid var(--border);margin-top:4px">
+      <div class="pipeline-group-header" style="display:flex;align-items:center;gap:6px" title="Raw job lists imported in bulk — triage to sort into buckets, then digest the ones worth pursuing">
+        <span>Ingestion Batches</span>
+        ${batches.length ? `<span class="sidebar-count">${batches.length}</span>` : ''}
+        <span class="spacer"></span>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 7px" onclick="triggerChat('scan email for jobs')" title="Scan Gmail for job emails">📧 Scan Email</button>
+      </div>
+      <div class="job-list">
+        ${batches.length ? batches.map(b => `
+          <button class="job-item" onclick="viewBatch('${esc(b.batch_id)}')">
+            <span class="job-item-title">${esc(b.source || 'batch')} · ${esc(b.intake_date || '')}</span>
+            <span class="job-item-meta" style="color:var(--${b.status==='triaged'?'green':'text3'})">
+              ${b.status === 'triaged'
+                ? (b.bucket_counts && Object.keys(b.bucket_counts).length
+                    ? Object.entries(b.bucket_counts).map(([bk,n]) => `<span style="color:var(--${_bucketCss(bk)})">${n} ${bk}</span>`).join(' · ')
+                    : `${b.passed_count}✓ ${b.excluded_count}✗`)
+                : esc(b.status)}
+            </span>
+          </button>`).join('')
+        : '<div style="padding:8px 12px;font-size:11px;color:var(--text3)">No batches yet — paste a list into chat.</div>'}
+      </div>
+    </div>`;
+
+  const recColorVar = { apply: 'green', monitor: 'yellow', stretch: 'orange', pass: 'red' };
+  const jobsHtml = sorted.length ? sorted.map((j, idx) => {
+    const rec = j.recommendation || 'none';
+    const hasPursuit = j.pursuit_score != null;
+    const hasReal    = j.score != null;
+    const hasBoth    = hasPursuit && hasReal;
+
+    let scoreEl;
+    if (hasBoth) {
+      scoreEl = `<div class="score-dual" title="Blue: triage potential · Bottom: real match score">
+        <div class="score-dual-top">${Math.round(j.pursuit_score)}</div>
+        <div class="score-dual-bot rec-${esc(rec)}">${Math.round(j.score)}</div>
+      </div>`;
+    } else if (hasPursuit) {
+      scoreEl = `<div class="score-ring score-pursuit" title="Triage estimate — digest &amp; score for a real match score">~${Math.round(j.pursuit_score)}</div>`;
+    } else {
+      scoreEl = `<div class="score-ring rec-${esc(rec)}">${hasReal ? Math.round(j.score) : '⚠'}</div>`;
+    }
+
+    const stagePill = `<span class="tag status-${esc(j.stage)}" style="font-size:9px;padding:1px 4px">${j.stage.toUpperCase()}</span>`;
+    const recPill = hasReal
+      ? `<span class="rec-badge rec-${esc(rec)}">${rec.toUpperCase()}</span>`
+      : hasPursuit
+        ? `<span class="rec-badge" style="background:rgba(59,130,246,0.12);color:var(--blue)">~${_bucketLabel(j.bucket).toUpperCase()}</span>`
+        : `<span class="rec-badge rec-incomplete">UNSCORED</span>`;
+    const listBadge = j.batch_id ? `<span class="tag" style="font-size:9px;padding:1px 4px;background:var(--border);color:var(--text2)">LIST</span>` : '';
+    const scoreText = j.score != null
+      ? `<span style="font-size:11px;font-weight:700;color:var(--${recColorVar[rec]||'text3'});flex-shrink:0">${j.score}</span>`
+      : '';
+    const src = _sourceLabel(j.source);
+    const srcSpan = src ? `<span style="font-size:9px;color:var(--text3);white-space:nowrap">via ${esc(src)}</span>` : '';
+    const infoItems = [_salaryShort(j), j.contract_type, _locationShort(j)].filter(Boolean);
+    const infoLine = infoItems.length
+      ? `<div class="job-card-info">${infoItems.map(esc).join(' · ')}</div>` : '';
+    const isSelected = _selectedJobs.has(j.id);
+    return `<button class="job-item job-card${_activeJobId === j.id ? ' active' : ''}${isSelected ? ' selected' : ''}" onclick="viewJob('${esc(j.id)}')" oncontextmenu="showJobCtx(event,'${esc(j.id)}')" title="${esc(_jobTooltip(j))}">
+      <label class="job-card-check" onclick="event.stopPropagation()" title="Select (Shift+click for range)">
+        <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="handleJobSelect(event,'${esc(j.id)}',${idx})">
+      </label>
+      <div class="job-card-score">${scoreEl}</div>
+      <div class="job-card-body">
+        <div class="job-card-title"><span class="job-card-title-text">${esc(_jobDisplayName(j))}</span>${scoreText}</div>
+        ${infoLine}
+        <div class="job-card-chips">${stagePill}${listBadge} ${recPill} ${srcSpan}</div>
+      </div>
+    </button>`;
+  }).join('') : `<div style="padding:16px;font-size:12px;color:var(--text3)">${_jobsView === 'archived' ? 'No archived jobs.' : 'No jobs match.'}</div>`;
+
+  sidebar.innerHTML = viewToggle + filterBar + `<div class="job-list">${jobsHtml}</div>` + (_jobsView === 'active' ? batchesHtml : '');
+}
+
+async function viewBatch(batchId) {
+  _activeBatchId = batchId;
+  const el = document.getElementById('jobs-content');
+  el.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const data = await api('GET', `/api/jobs/batches/${batchId}`);
+    const { meta, jobs } = data;
+
+    // Bucket tab counts
+    const counts = {};
+    for (const j of jobs) counts[j.bucket] = (counts[j.bucket] || 0) + 1;
+    const bucketOrder = ['pursue','research','watch','pass','suspect'];
+
+    const tab = (f, label) => {
+      const n = f === 'all' ? jobs.length : (counts[f] || 0);
+      if (n === 0 && f !== 'all') return '';
+      const active = _batchFilter === f ? ' active' : '';
+      const color = f !== 'all' ? ` style="color:var(--${_bucketCss(f)})"` : '';
+      return `<button class="filter-pill${active}" onclick="_batchFilter='${f}';viewBatch('${esc(batchId)}')"${color}>${esc(label)} <span style="opacity:.55;font-weight:400">${n}</span></button>`;
+    };
+
+    const filtered = _batchFilter === 'all' ? jobs : jobs.filter(j => j.bucket === _batchFilter);
+    const sorted = [...filtered].sort((a, b) => (b.pursuit_score || 0) - (a.pursuit_score || 0));
+
+    const BUCKET_OPTS = ['pursue','research','watch','pass','suspect','signal_play'];
+
+    const jobCards = sorted.map(j => {
+      const ps = j.pursuit_score != null ? Math.round(j.pursuit_score) : '?';
+      const bc = _bucketCss(j.bucket || 'pass');
+      const infoItems = [j.salary_stated || j.rate_stated, j.contract_type,
+        j.remote_policy && j.location ? `${j.remote_policy} · ${j.location}`
+        : j.remote_policy || j.location].filter(Boolean);
+      const chips = _signalChips(j.signals);
+      const opts = BUCKET_OPTS.map(b =>
+        `<option value="${b}"${j.bucket===b?' selected':''}>${_bucketLabel(b)}</option>`).join('');
+      const isPursue = j.bucket === 'pursue';
+      const slug = j.company_slug || '';
+
+      return `<div class="batch-job-card">
+        <div class="batch-job-ring" style="cursor:pointer" onclick="viewJob('${esc(j.id)}')" title="View job details">
+          <div class="score-ring bkt-${esc(j.bucket||'pass')}">${ps}</div>
+        </div>
+        <div class="batch-job-body" style="cursor:pointer" onclick="viewJob('${esc(j.id)}')" title="View job details">
+          <div class="batch-job-title">${esc(j.title || '—')}${j.company ? ` <span class="batch-job-co">@ ${esc(j.company)}</span>` : ''}</div>
+          ${infoItems.length ? `<div class="batch-job-info">${infoItems.map(esc).join(' · ')}</div>` : ''}
+          ${chips ? `<div class="batch-job-signals">${chips}</div>` : ''}
+          ${j.pursuit_notes ? `<div class="batch-job-notes" title="${esc(j.pursuit_notes)}">${esc(j.pursuit_notes)}</div>` : ''}
+          ${j.exclude_reason ? `<div class="batch-job-notes" style="color:var(--red)">Excluded: ${esc(j.exclude_reason)}</div>` : ''}
+        </div>
+        <div class="batch-job-actions" onclick="event.stopPropagation()">
+          <select class="bucket-select" onchange="setBucket('${esc(j.id)}',this.value,true)">${opts}</select>
+          ${isPursue ? `<button class="btn btn-primary btn-sm" style="white-space:nowrap" onclick="triggerChat('get full job description for ${esc(j.id)}')" title="Fetch and digest the full job description">→ Full JD</button>` : ''}
+          ${j.source_url ? `<a class="btn btn-ghost btn-sm" href="${esc(j.source_url)}" target="_blank" title="Open original job posting">↗</a>` : ''}
+          ${slug ? `<button class="btn btn-ghost btn-sm" onclick="showCompanyTagMenu(event,'${esc(slug)}','${esc(j.company||slug)}')" title="Tag company">🏷</button>` : ''}
+        </div>
+      </div>`;
+    }).join('') || '<div style="padding:20px;font-size:12px;color:var(--text3)">No jobs in this view.</div>';
+
+    const srcLabel = _sourceLabel(meta.source) || meta.source || 'Unknown source';
+    const statusBadge = meta.status === 'triaged'
+      ? `<span class="tag" style="color:var(--green)">triaged</span>`
+      : `<span class="tag">${esc(meta.status || 'raw')}</span>`;
+
+    const pursueIds = jobs.filter(j => j.bucket === 'pursue').map(j => j.id);
+    const digestBtn = pursueIds.length
+      ? `<button class="btn btn-sm" style="background:var(--green);color:#000;white-space:nowrap"
+           onclick="triggerChat('digest pursue jobs from batch ${esc(batchId)}: ${pursueIds.join(', ')}')">
+           → Digest ${pursueIds.length} Pursue</button>`
+      : '';
+    el.innerHTML = `
+      <div class="viewer-header">
+        <span class="viewer-title">${esc(srcLabel)} · ${esc(meta.intake_date || '')}</span>
+        ${statusBadge}
+        <span style="font-size:12px;color:var(--text3)">${jobs.length} jobs</span>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost btn-sm" onclick="triggerChat('triage batch ${esc(batchId)}')">⚙ Triage</button>
+        ${digestBtn}
+      </div>
+      <div class="jobs-filter-bar" style="border-top:none;padding-top:6px">
+        ${tab('all','All')}
+        ${bucketOrder.map(b => tab(b, _bucketLabel(b))).join('')}
+      </div>
+      <div class="batch-job-list">${jobCards}</div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+async function overrideDimScore(jobId, dimension, inputEl) {
+  const val = Math.max(0, Math.min(100, parseFloat(inputEl.value) || 0));
+  inputEl.value = val;
+  try {
+    const res = await api('PATCH', `/api/jobs/${jobId}/score`, { dimension, score: val });
+    inputEl.classList.add('overridden');
+    // Update total score + rec badge in the same pane
+    const pane = document.getElementById('jobs-content');
+    const big = pane.querySelector('.score-big');
+    if (big) big.textContent = res.score;
+    const badge = pane.querySelector('.score-header .rec-badge');
+    if (badge) {
+      badge.className = `rec-badge rec-${res.recommendation}`;
+      badge.textContent = res.recommendation.toUpperCase();
+      badge.style.fontSize = '11px'; badge.style.padding = '3px 9px';
+    }
+    // Update the bar for this dimension
+    const row = pane.querySelector(`[data-dim="${dimension}"] .score-fill-dim`);
+    if (row) {
+      const fill = val >= 80 ? 'var(--green)' : val >= 60 ? 'var(--yellow)' : 'var(--red)';
+      row.style.width = val + '%';
+      row.style.background = fill;
+    }
+    // Refresh sidebar score ring + number
+    const allData = _jobsData || {};
+    for (const list of Object.values(allData)) {
+      const j = list.find(x => x.id === jobId);
+      if (j) { j.score = res.score; j.recommendation = res.recommendation; }
+    }
+    if (_jobsById[jobId]) {
+      _jobsById[jobId].score = res.score;
+      _jobsById[jobId].recommendation = res.recommendation;
+    }
+    renderJobsSidebar();
+    toast(`${dimension.replace('_match','').replace('_',' ')} overridden → composite ${res.score}`, 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function viewJob(jobId) {
+  _activeJobId = jobId;
+  renderJobsSidebar();
+  const el = document.getElementById('jobs-content');
+  el.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const data = await api('GET', `/api/jobs/${jobId}`);
+    const meta = data.meta || {};
+    const rec = meta.recommendation || 'none';
+    const _hasCompany = meta.company_slug
+      ? await api('GET', `/api/companies/${encodeURIComponent(meta.company_slug)}`).then(() => true).catch(() => false)
+      : false;
+
+    const _archiveBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="directArchive('${esc(jobId)}')">✕ Archive</button>`;
+    const _addBtn = `<button class="btn btn-ghost btn-sm" onclick="addToChat('${esc(jobId)}')" title="Add job ID to chat input">+ Chat</button>`;
+    const statusActions = {
+      raw: `<button class="btn btn-primary btn-sm" onclick="triggerChat('digest ${esc(jobId)}')">⚙ Digest</button>${_archiveBtn}${_addBtn}`,
+      digested: `<button class="btn btn-success btn-sm" onclick="triggerChat('score and whitelist ${esc(jobId)}')">✓ Whitelist</button>
+                 <button class="btn btn-ghost btn-sm" onclick="triggerChat('score job ${esc(jobId)}')">⚡ Score</button>${_archiveBtn}${_addBtn}`,
+      whitelisted: `<button class="btn btn-primary btn-sm" onclick="triggerChat('generate application package for ${esc(jobId)}')">📄 Package</button>
+                   <button class="btn btn-ghost btn-sm" onclick="triggerChat('generate interview prep for ${esc(jobId)}')">📝 Prep</button>
+                   <button class="btn btn-ghost btn-sm" onclick="viewJobDocs('${esc(jobId)}')">🗂 Docs</button>${_archiveBtn}${_addBtn}`,
+      archived: `<button class="btn btn-ghost btn-sm" onclick="directUnarchive('${esc(jobId)}')">↩ Unarchive</button>${_addBtn}`,
+    };
+
+    // Missing field flags
+    const missing = [];
+    if (!meta.rate_stated && !meta.salary_stated) missing.push('salary/rate');
+    if (!meta.remote_policy) missing.push('remote policy');
+    if (!meta.contract_type) missing.push('contract type');
+    const missingHtml = missing.length
+      ? `<div class="incomplete-banner">⚠ Missing info: ${missing.map(m => `<span>${esc(m)}</span>`).join('')} — score may be incomplete</div>`
+      : '';
+
+    // Score overview
+    const breakdown = meta.score_breakdown || {};
+    const dimDefs = [
+      { key: 'skill_match',           label: 'Skills',   weight: '30%' },
+      { key: 'rate_match',            label: 'Rate',     weight: '25%' },
+      { key: 'location_match',        label: 'Location', weight: '20%' },
+      { key: 'contract_length_match', label: 'Contract', weight: '15%' },
+      { key: 'timing_match',          label: 'Timing',   weight: '10%' },
+    ];
+    const hasDims = dimDefs.some(d => breakdown[d.key]);
+
+    const scoreHtml = meta.score != null ? `
+      <div class="score-overview">
+        <div class="score-header">
+          <span class="score-big">${meta.score}</span>
+          <span class="rec-badge rec-${esc(rec)}" style="font-size:11px;padding:3px 9px">${rec.toUpperCase()}</span>
+        </div>
+        ${hasDims ? `<div class="score-dims">
+          ${dimDefs.map(d => {
+            const dim = breakdown[d.key] || {};
+            const s = dim.score ?? 0;
+            const fill = s >= 80 ? 'var(--green)' : s >= 60 ? 'var(--yellow)' : 'var(--red)';
+            const ovr = dim.override ? ' overridden' : '';
+            return `<div class="dim-row" data-dim="${d.key}">
+              <span class="dim-label">${d.label}</span>
+              <div class="score-bar-dim"><div class="score-fill-dim" style="width:${s}%;background:${fill}"></div></div>
+              <input class="dim-score-input${ovr}" type="number" min="0" max="100" step="1" value="${Math.round(s)}"
+                title="Click to override score (0–100)"
+                onchange="overrideDimScore('${esc(jobId)}','${d.key}',this)"
+                onclick="event.stopPropagation()">
+              <span class="dim-weight">${d.weight}</span>
+            </div>
+            ${dim.note ? `<div class="dim-note">${esc(dim.note)}</div>` : ''}`;
+          }).join('')}
+        </div>` : `<div style="font-size:11px;color:var(--text3);margin-top:4px">Re-score to see dimension breakdown</div>`}
+      </div>`
+      : `<div class="score-overview unscored">
+          <span style="color:var(--text3);font-size:12px">Not yet scored</span>
+          <button class="btn btn-ghost btn-sm" onclick="triggerChat('score job ${esc(jobId)}')">⚡ Score now</button>
+        </div>`;
+
+    // Metadata grid
+    const rateDisplay = meta.salary_stated
+      ? `${meta.salary_stated}${meta.contract_type === 'full-time' ? ' (+30% benefits)' : ''}`
+      : (meta.rate_stated || null);
+    const metaRows = [
+      ['Salary/Rate', rateDisplay, !rateDisplay],
+      ['Remote',      meta.remote_policy, !meta.remote_policy],
+      ['Location',    meta.location, false],
+      ['Contract',    meta.contract_type, false],
+      meta.duration_months ? ['Duration', `${meta.duration_months} months`, false] : null,
+    ].filter(Boolean);
+
+    const metaHtml = `<div class="meta-grid">
+      ${metaRows.map(([k, v, warn]) => `
+        <div class="meta-row">
+          <span class="meta-key">${esc(k)}</span>
+          <span class="meta-val${warn ? ' missing' : ''}">${v ? esc(String(v)) : '<span style="color:var(--yellow)">⚠ not stated</span>'}</span>
+        </div>`).join('')}
+    </div>`;
+
+    // Provenance card
+    const _platformFromUrl = url => {
+      if (!url) return null;
+      if (url.includes('glassdoor.com'))    return 'Glassdoor';
+      if (url.includes('linkedin.com'))     return 'LinkedIn';
+      if (url.includes('indeed.com'))       return 'Indeed';
+      if (url.includes('ziprecruiter.com')) return 'ZipRecruiter';
+      if (url.includes('wellfound.com'))    return 'Wellfound';
+      if (url.includes('nexxt.com'))        return 'Nexxt';
+      if (url.includes('dice.com'))         return 'Dice';
+      if (url.includes('monster.com'))      return 'Monster';
+      return null;
+    };
+    const platform = _platformFromUrl(meta.source_url) || (meta.source ? _sourceLabel(meta.source) : null);
+    const batchLabel = meta.batch_id
+      ? (meta.source || meta.batch_id).replace('email-gmail-', 'Gmail email scan · ').replace('email-', 'Email · ')
+      : null;
+    const intakeLabel = meta.intake_date || null;
+    const postedLabel = meta.posted_date || null;
+    const aiNote = meta.pursuit_notes || (meta.score_breakdown?.skill_match?.note) || null;
+
+    const provenanceRows = [
+      platform           ? `<div class="meta-row"><span class="meta-key">Platform</span><span class="meta-val">${esc(platform)}</span></div>` : '',
+      batchLabel         ? `<div class="meta-row"><span class="meta-key">Found via</span><span class="meta-val">${esc(batchLabel)}</span></div>` : '',
+      meta.email_subject ? `<div class="meta-row"><span class="meta-key">Email subject</span><span class="meta-val" style="font-style:italic">${esc(meta.email_subject)}</span></div>` : '',
+      meta.email_sender  ? `<div class="meta-row"><span class="meta-key">Email from</span><span class="meta-val">${esc(meta.email_sender)}${meta.email_date ? ' · ' + esc(meta.email_date) : ''}</span></div>` : '',
+      intakeLabel        ? `<div class="meta-row"><span class="meta-key">Ingested</span><span class="meta-val">${esc(intakeLabel)}</span></div>` : '',
+      postedLabel        ? `<div class="meta-row"><span class="meta-key">Posted</span><span class="meta-val">${esc(postedLabel)}</span></div>` : '',
+      meta.source_url    ? `<div class="meta-row"><span class="meta-key">Link</span><span class="meta-val"><a href="${esc(meta.source_url)}" target="_blank" style="color:var(--blue);text-decoration:none">↗ Open original</a></span></div>` : '',
+    ].filter(Boolean).join('');
+
+    const aiNoteHtml = aiNote
+      ? `<div class="card" style="margin-bottom:16px">
+           <div class="card-title">AI Note</div>
+           <div style="font-size:12px;color:var(--text2);line-height:1.6">${esc(aiNote)}</div>
+         </div>`
+      : '';
+
+    // Strip frontmatter from markdown body
+    const rawBody = (data.content || '').replace(/^---[\s\S]*?\n---\n*/, '').trim();
+    // For undigested batch items the body is just the raw ingested text — not useful to render.
+    // Show it only if it looks like structured markdown (has ## headings or multi-line content).
+    const isRawListItem = data.status === 'raw' && !!meta.batch_id;
+    const bodyMd = (!isRawListItem && rawBody) ? rawBody : null;
+
+    const companyHtml = meta.company
+      ? ` <span style="color:var(--text2);font-weight:400">@ ${_hasCompany
+          ? `<span class="company-link" onmouseenter="showCompanyTooltip('${esc(meta.company_slug||'')}',this)" onmouseleave="hideCompanyTooltip()">${esc(meta.company)}</span>`
+          : esc(meta.company)
+        }</span>`
+      : '';
+    const titleHtml = meta.title ? `${esc(meta.title)}${companyHtml}` : esc(jobId);
+
+    el.innerHTML = `
+      <div class="viewer-header">
+        <span class="viewer-title" style="font-size:13px">${titleHtml}</span>
+        <span class="tag status-${esc(data.status)}">${esc(data.status)}</span>
+        ${statusActions[data.status] || ''}
+      </div>
+      ${missingHtml}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="card"><div class="card-title">Score</div>${scoreHtml}</div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card"><div class="card-title">Details</div>${metaHtml}</div>
+          ${provenanceRows ? `<div class="card"><div class="card-title">Source</div><div class="meta-grid">${provenanceRows}</div></div>` : ''}
+        </div>
+      </div>
+      ${aiNoteHtml}
+      ${bodyMd
+        ? `<div class="md-body">${marked.parse(bodyMd)}</div>`
+        : isRawListItem
+          ? `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">No full JD yet — use <strong>→ Full JD</strong> or paste the job description into chat to digest.</div>`
+          : ''
+      }`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+// ── APPLICATIONS ─────────────────────────────────────────────────────────────
+async function loadApplications() {
+  try {
+    const [data, followups] = await Promise.all([
+      api('GET', '/api/applications?status=active'),
+      api('GET', '/api/applications/followups').catch(() => ({ overdue: [], due_today: [] })),
+    ]);
+    const sidebar = document.getElementById('apps-sidebar');
+    const apps = data.applications || [];
+    if (!apps.length) {
+      sidebar.innerHTML = '<div style="padding:16px;font-size:12px;color:var(--text3)">No applications logged yet.<br>Use chat: <code>log application for &lt;job_id&gt;</code></div>';
+      return;
+    }
+
+    const overdueIds = new Set((followups.overdue || []).map(a => a.job_id));
+    const todayIds   = new Set((followups.due_today || []).map(a => a.job_id));
+
+    function _fuBadge(a) {
+      if (overdueIds.has(a.job_id)) return `<span style="color:var(--red);font-size:10px;font-weight:700">OVERDUE</span>`;
+      if (todayIds.has(a.job_id))   return `<span style="color:var(--yellow);font-size:10px;font-weight:700">TODAY</span>`;
+      return a.follow_up_date ? `<span style="font-size:10px;color:var(--text3)">${esc(a.follow_up_date)}</span>` : '';
+    }
+
+    const urgentApps = apps.filter(a => overdueIds.has(a.job_id) || todayIds.has(a.job_id));
+    const normalApps = apps.filter(a => !overdueIds.has(a.job_id) && !todayIds.has(a.job_id));
+
+    const urgentHtml = urgentApps.length ? `
+      <div class="pipeline-group-header" style="color:var(--red)">Action Needed <span class="sidebar-count">${urgentApps.length}</span></div>
+      <div class="job-list">${urgentApps.map(a => `
+        <button class="job-item${_activeAppId === a.job_id ? ' active' : ''}" onclick="viewApplication('${esc(a.job_id)}')">
+          <span class="job-item-title">${esc(a.title || a.job_id)}</span>
+          <span class="job-item-meta">${esc(a.company || '')} ${_fuBadge(a)}</span>
+        </button>`).join('')}
+      </div>` : '';
+
+    const normalHtml = normalApps.length ? `
+      <div class="pipeline-group-header">Applied <span class="sidebar-count">${normalApps.length}</span></div>
+      <div class="job-list">${normalApps.map(a => `
+        <button class="job-item${_activeAppId === a.job_id ? ' active' : ''}" onclick="viewApplication('${esc(a.job_id)}')">
+          <span class="job-item-title">${esc(a.title || a.job_id)}</span>
+          <span class="job-item-meta">${esc(a.company || '')} · ${esc(a.applied_date || '')}</span>
+        </button>`).join('')}
+      </div>` : '';
+
+    sidebar.innerHTML = urgentHtml + normalHtml;
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function viewApplication(jobId) {
+  _activeAppId = jobId;
+  document.querySelectorAll('#apps-sidebar .job-item').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick')?.includes(jobId));
+  });
+  const el = document.getElementById('apps-content');
+  el.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const [appData, docsData] = await Promise.all([
+      api('GET', `/api/applications?status=active`),
+      api('GET', `/api/docs/${jobId}`).catch(() => ({ files: [] })),
+    ]);
+    const app = (appData.applications || []).find(a => a.job_id === jobId) || {};
+    const files = docsData.files || [];
+
+    const methodColor = { linkedin: 'blue', email: 'yellow', direct: 'green', recruiter: 'purple', referral: 'green' };
+    const mc = methodColor[app.method] || 'text3';
+
+    el.innerHTML = `
+      <div class="viewer-header">
+        <span class="viewer-title">${esc(app.title || jobId)}</span>
+        <span class="tag" style="color:var(--${mc})">${esc(app.method || 'applied')}</span>
+      </div>
+      <div class="settings-grid" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-title">Application Details</div>
+          <div class="settings-row"><span class="settings-key">Company</span><span class="settings-val">${esc(app.company || '—')}</span></div>
+          <div class="settings-row"><span class="settings-key">Applied</span><span class="settings-val">${esc(app.applied_date || '—')}</span></div>
+          <div class="settings-row"><span class="settings-key">Method</span><span class="settings-val">${esc(app.method || '—')}</span></div>
+          <div class="settings-row"><span class="settings-key">Follow-up</span><span class="settings-val" style="color:var(--yellow)">${esc(app.follow_up_date || '—')}</span></div>
+        </div>
+      </div>
+      ${files.length ? `
+      <div class="card">
+        <div class="card-title">Generated Documents</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+          ${files.map(f => `
+            <button class="btn btn-ghost" style="justify-content:flex-start;text-align:left" onclick="viewDoc('${esc(jobId)}','${esc(f.filename)}')">
+              📄 ${esc(f.label)} <span style="margin-left:auto;font-size:10px;color:var(--text3)">${esc(f.modified || '')}</span>
+            </button>`).join('')}
+        </div>
+      </div>` : `
+      <div class="card">
+        <div class="card-title">Documents</div>
+        <p style="font-size:12px;color:var(--text3);margin:8px 0">No docs generated yet.</p>
+        <button class="btn btn-primary btn-sm" onclick="openChat('generate application package for ${esc(jobId)}')">📄 Generate Package</button>
+      </div>`}
+      <div class="card">
+        <div class="card-title">Record Outcome</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+          <button class="btn btn-ghost btn-sm" onclick="openChat('record outcome for ${esc(jobId)}: interview')">🗓 Interview</button>
+          <button class="btn btn-ghost btn-sm" onclick="openChat('record outcome for ${esc(jobId)}: offer')">🎉 Offer</button>
+          <button class="btn btn-ghost btn-sm" onclick="openChat('record outcome for ${esc(jobId)}: rejected')">✗ Rejected</button>
+          <button class="btn btn-ghost btn-sm" onclick="openChat('record outcome for ${esc(jobId)}: no_response')">😶 No Response</button>
+          <button class="btn btn-ghost btn-sm" onclick="openChat('record outcome for ${esc(jobId)}: withdrew')">↩ Withdrew</button>
+          <button class="btn btn-ghost btn-sm" onclick="openChat('reschedule follow-up for ${esc(jobId)} in 7 days')">🔔 Reschedule</button>
+        </div>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+let _activeDoc = null;
+
+async function viewDoc(jobId, filename) {
+  const el = document.getElementById('apps-content');
+  const header = el.querySelector('.viewer-header');
+  const loading = document.createElement('div');
+  loading.className = 'loading';
+  loading.textContent = 'Loading…';
+  try {
+    const data = await api('GET', `/api/docs/${jobId}/${filename}`);
+    // Replace content area below header with doc view
+    const backBtn = `<button class="btn btn-ghost btn-sm" onclick="viewApplication('${esc(jobId)}')">← Back</button>`;
+    el.innerHTML = `
+      <div class="viewer-header">
+        <span class="viewer-title">${esc(filename.replace('.md','').replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase()))}</span>
+        ${backBtn}
+      </div>
+      <div class="md-body">${marked.parse(data.content)}</div>`;
+  } catch(e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function viewJobDocs(jobId) {
+  // Switch to Applications tab and open the job's doc list
+  switchTab('applications');
+  await loadApplications();
+  viewApplication(jobId);
+}
+
+// ── COMPANIES ────────────────────────────────────────────────────────────────
+async function loadCompanies() {
+  try {
+    const [data, warmData] = await Promise.all([
+      api('GET', '/api/companies'),
+      api('GET', '/api/companies/warm-leads').catch(() => ({ due: [], upcoming: [] })),
+    ]);
+    const sidebar = document.getElementById('companies-sidebar');
+    const companies = data.companies || [];
+    if (!companies.length) {
+      sidebar.innerHTML = '<div style="padding:16px;font-size:12px;color:var(--text3)">No companies yet.<br>Companies are auto-created when jobs are digested.</div>';
+      return;
+    }
+
+    const statusColor = { active: 'green', warm: 'yellow', cold: 'text3', blacklisted: 'red' };
+    const warmDueSlugs = new Set((warmData.due || []).map(c => c.slug));
+
+    const byStatus = { active: [], warm: [], cold: [], blacklisted: [] };
+    for (const c of companies) {
+      (byStatus[c.status] || byStatus.cold).push(c);
+    }
+
+    const sections = [
+      { key: 'active',      label: 'Active',      color: 'green' },
+      { key: 'warm',        label: 'Warm Leads',  color: 'yellow' },
+      { key: 'cold',        label: 'Cold',        color: 'text3' },
+      { key: 'blacklisted', label: 'Blacklisted', color: 'red' },
+    ].filter(s => byStatus[s.key].length > 0);
+
+    sidebar.innerHTML = sections.map(s => `
+      <div class="pipeline-group">
+        <div class="pipeline-group-header" style="color:var(--${s.color})">${s.label} <span class="sidebar-count">${byStatus[s.key].length}</span></div>
+        <div class="job-list">
+          ${byStatus[s.key].map(c => `
+            <button class="job-item${_activeCompany === c.slug ? ' active' : ''}" onclick="viewCompany('${esc(c.slug)}')">
+              <span class="job-item-title">
+                ${warmDueSlugs.has(c.slug) ? '<span style="color:var(--yellow);font-size:10px">● </span>' : ''}
+                ${esc(c.name || c.slug)}
+              </span>
+              <span class="job-item-meta">${esc(c.industry || '')}${c.job_count ? ` · ${c.job_count} job${c.job_count>1?'s':''}` : ''}</span>
+            </button>`).join('')}
+        </div>
+      </div>`).join('');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function viewCompany(slug) {
+  _activeCompany = slug;
+  document.querySelectorAll('#companies-sidebar .job-item').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick')?.includes(`'${slug}'`));
+  });
+  const el = document.getElementById('companies-content');
+  el.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const [data, jobsData] = await Promise.all([
+      api('GET', `/api/companies/${slug}`),
+      api('GET', '/api/jobs').catch(() => ({})),
+    ]);
+    const m = data.meta || {};
+    const statusColor = { active: 'green', warm: 'yellow', cold: 'text3', blacklisted: 'red' };
+    const sc = statusColor[m.status] || 'text3';
+    const row = (k, v) => v != null && v !== '' && v !== null
+      ? `<div class="settings-row"><span class="settings-key">${esc(k)}</span><span class="settings-val">${esc(String(v))}</span></div>`
+      : '';
+
+    // Gather all jobs for this company from the full jobs list, deduped by stage priority
+    const stagePriority = { whitelisted: 4, digested: 3, raw: 2, archived: 1 };
+    const jobsById = {};
+    for (const [stage, list] of Object.entries(jobsData || {})) {
+      for (const j of (list || [])) {
+        if ((j.company_slug || '').toLowerCase() !== slug.toLowerCase()) continue;
+        const ex = jobsById[j.id];
+        if (!ex || (stagePriority[stage] || 0) > (stagePriority[ex.stage] || 0)) {
+          jobsById[j.id] = { ...j, stage };
+        }
+      }
+    }
+    const companyJobs = Object.values(jobsById).sort((a, b) => (b.score ?? b.pursuit_score ?? -1) - (a.score ?? a.pursuit_score ?? -1));
+
+    const recColorVar = { apply: 'green', monitor: 'yellow', stretch: 'orange', pass: 'red' };
+    const jobCardsHtml = companyJobs.length ? companyJobs.map(j => {
+      const rec = j.recommendation || 'none';
+      const hasReal    = j.score != null;
+      const hasPursuit = j.pursuit_score != null;
+      let scoreEl;
+      if (hasReal && hasPursuit) {
+        scoreEl = `<div class="score-dual"><div class="score-dual-top">${Math.round(j.pursuit_score)}</div><div class="score-dual-bot rec-${esc(rec)}">${Math.round(j.score)}</div></div>`;
+      } else if (hasPursuit) {
+        scoreEl = `<div class="score-ring score-pursuit">~${Math.round(j.pursuit_score)}</div>`;
+      } else {
+        scoreEl = `<div class="score-ring rec-${esc(rec)}">${hasReal ? Math.round(j.score) : '⚠'}</div>`;
+      }
+      const stagePill = `<span class="tag status-${esc(j.stage)}" style="font-size:9px;padding:1px 4px">${j.stage.toUpperCase()}</span>`;
+      const recPill = hasReal
+        ? `<span class="rec-badge rec-${esc(rec)}">${rec.toUpperCase()}</span>`
+        : hasPursuit
+          ? `<span class="rec-badge" style="background:rgba(59,130,246,0.12);color:var(--blue)">~${(_bucketLabel(j.bucket)||j.bucket||'').toUpperCase()}</span>`
+          : `<span class="rec-badge rec-incomplete">UNSCORED</span>`;
+      const infoItems = [_salaryShort(j), j.contract_type, _locationShort(j)].filter(Boolean);
+      const infoLine = infoItems.length ? `<div class="job-card-info">${infoItems.map(esc).join(' · ')}</div>` : '';
+      const scoreText = hasReal ? `<span style="font-size:11px;font-weight:700;color:var(--${recColorVar[rec]||'text3'});flex-shrink:0">${j.score}</span>` : '';
+      return `<button class="job-item job-card" onclick="switchTab('jobs');loadJobs().then(()=>viewJob('${esc(j.id)}'))">
+        <div class="job-card-score">${scoreEl}</div>
+        <div class="job-card-body">
+          <div class="job-card-title"><span class="job-card-title-text">${esc(j.title || j.id)}</span>${scoreText}</div>
+          ${infoLine}
+          <div class="job-card-chips">${stagePill} ${recPill}</div>
+        </div>
+      </button>`;
+    }).join('') : '<div style="font-size:12px;color:var(--text3);padding:4px 0">No jobs in system for this company.</div>';
+
+    el.innerHTML = `
+      <div class="viewer-header">
+        <span class="viewer-title">${esc(m.name || slug)}</span>
+        <span class="tag" style="color:var(--${sc})">${esc(m.status || 'cold')}</span>
+        <button class="btn btn-ghost btn-sm" onclick="openChat('enrich company ${esc(slug)}')">✎ Enrich</button>
+        <button class="btn btn-ghost btn-sm" onclick="openChat('flag warm lead ${esc(slug)}')">★ Warm Lead</button>
+      </div>
+      <div class="settings-grid" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-title">Details</div>
+          ${row('Industry', m.industry)}
+          ${row('Size', m.size)}
+          ${row('Website', m.website)}
+          ${row('Last Updated', m.last_updated)}
+        </div>
+        ${m.status === 'warm' ? `<div class="card">
+          <div class="card-title" style="color:var(--yellow)">Warm Lead</div>
+          ${row('Since', m.warm_lead_since)}
+          ${row('Resurface', m.warm_lead_resurface)}
+          ${row('Note', m.warm_lead_note)}
+        </div>` : ''}
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title">Jobs <span style="font-weight:400;color:var(--text3);font-size:11px">${companyJobs.length ? `(${companyJobs.length})` : ''}</span></div>
+        <div class="job-list" style="margin-top:8px">${jobCardsHtml}</div>
+      </div>
+      ${(m.contacts||[]).length ? `<div class="card" style="margin-bottom:12px"><div class="card-title">Contacts</div>
+        <div style="font-size:12px;margin-top:6px">${(m.contacts||[]).map(c => `<div style="padding:3px 0">${esc(c)}</div>`).join('')}</div>
+      </div>` : ''}
+      ${m.notes ? `<div class="card"><div class="card-title">Notes</div><div class="md-body" style="margin-top:8px">${marked.parse(m.notes)}</div></div>` : ''}`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><h3>${esc(slug)}</h3><p>Company record not yet created. Ask Claude to digest a job from this company.</p></div>`;
+  }
+}
+
+// ── STRATEGY ─────────────────────────────────────────────────────────────────
+let _strategyDocs = [];
+
+const _strategyGenPrompts = {
+  'market-patterns':  'analyze market patterns',
+  'gap-analysis':     'generate gap analysis',
+  'portfolio-roadmap':'update portfolio roadmap',
+};
+
+async function loadStrategy() {
+  try {
+    const data = await api('GET', '/api/strategy');
+    _strategyDocs = data.docs || [];
+    const sidebar = document.getElementById('strategy-sidebar');
+
+    sidebar.innerHTML = `
+      <div class="pipeline-group-header">Strategy Documents</div>
+      <div class="job-list">
+        ${_strategyDocs.map(d => `
+          <button class="job-item" onclick="loadStrategyDoc('${esc(d.name)}')">
+            <span class="job-item-title">
+              <span style="color:var(--${d.exists ? 'green' : 'text3'});margin-right:4px">${d.exists ? '●' : '○'}</span>
+              ${esc(d.label)}
+            </span>
+            <span class="job-item-meta">${d.exists ? esc(d.modified?.slice(5,10)||'') : 'not generated'}</span>
+          </button>`).join('')}
+      </div>
+      <div style="padding:12px 8px;border-top:1px solid var(--border);margin-top:8px">
+        <button class="btn btn-primary" style="width:100%;margin-bottom:6px" onclick="openChat('analyze market patterns')">
+          ⚡ Run Full Analysis
+        </button>
+        <p style="font-size:11px;color:var(--text3);margin:0">Runs all three steps in sequence. Needs 5+ whitelisted jobs.</p>
+      </div>`;
+
+    // Auto-load first existing doc, or first doc if none exist
+    const first = _strategyDocs.find(d => d.exists) || _strategyDocs[0];
+    if (first) loadStrategyDoc(first.name);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function loadStrategyDoc(name) {
+  document.querySelectorAll('#strategy-sidebar .job-item').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick')?.includes(`'${name}'`));
+  });
+  const el = document.getElementById('strategy-content');
+  el.innerHTML = '<div class="loading">Loading…</div>';
+  const label = (_strategyDocs.find(d => d.name === name)?.label) ||
+    name.replace(/-/g,' ').replace(/\b\w/g, l => l.toUpperCase());
+  const genPrompt = _strategyGenPrompts[name] || `generate ${name}`;
+
+  try {
+    const data = await api('GET', `/api/blueprints/strategy/${name}.md`);
+    el.innerHTML = `
+      <div class="viewer-header">
+        <span class="viewer-title">${esc(label)}</span>
+        <button class="btn btn-ghost btn-sm" onclick="openChat('${esc(genPrompt)}')">↻ Regenerate</button>
+      </div>
+      <div class="md-body">${marked.parse(data.content)}</div>`;
+  } catch(e) {
+    el.innerHTML = `
+      <div class="empty">
+        <h3>${esc(label)}</h3>
+        <p style="margin-bottom:16px">Not generated yet.</p>
+        <button class="btn btn-primary" onclick="openChat('${esc(genPrompt)}')">⚡ Generate Now</button>
+        <p style="font-size:11px;color:var(--text3);margin-top:10px">
+          ${name === 'market-patterns' ? 'Needs 5+ whitelisted or digested jobs.' :
+            name === 'gap-analysis' ? 'Run Market Patterns first.' :
+            'Run Gap Analysis first.'}
+        </p>
+      </div>`;
+  }
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+async function loadSettings() {
+  const el = document.getElementById('settings-content');
+  el.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const [cfg, rules] = await Promise.all([
+      api('GET', '/api/config'),
+      api('GET', '/api/rules'),
+    ]);
+    const row = (k, v) => `<div class="settings-row"><span class="settings-key">${esc(k)}</span><span class="settings-val">${esc(String(v))}</span></div>`;
+    el.innerHTML = `<div class="settings-grid">
+      <div class="card">
+        <div class="card-title">Project</div>
+        ${row('Name', cfg.project_name)}
+        ${row('Path', cfg.project_path)}
+        ${row('AI Model', cfg.ai_model || '—')}
+      </div>
+      <div class="card">
+        <div class="card-title">Paths</div>
+        ${row('Truth', cfg.truth_path)}
+        ${row('Blueprints', cfg.blueprints_path)}
+        ${row('Rules', cfg.rules_path)}
+      </div>
+      ${rules.rules ? `<div class="card">
+        <div class="card-title">Identity</div>
+        ${row('Name', rules.rules?.identity?.name || '—')}
+        ${row('Location', rules.rules?.identity?.base_location || '—')}
+        ${row('Target Start', rules.rules?.availability?.target_start || '—')}
+        ${row('Rate Min', rules.rules?.rate?.min_hourly ? '$' + rules.rules.rate.min_hourly + '/hr' : '—')}
+        ${row('Rate Target', rules.rules?.rate?.preferred_hourly ? '$' + rules.rules.rate.preferred_hourly + '/hr' : '—')}
+      </div>` : ''}
+    </div>`;
+  } catch(e) { el.innerHTML = `<div class="empty"><p>${esc(e.message)}</p></div>`; }
+}
+
+// ── Chat ─────────────────────────────────────────────────────────────────────
+let _sessionId = '';
+let _chatSSE = null;
+let _busyTimer = null;
+
+function _setBusyTimer() {
+  clearTimeout(_busyTimer);
+  _busyTimer = setTimeout(async () => {
+    await api('POST', '/api/chat/reset', {}).catch(() => {});
+    updateChatStatus({state: 'idle'});
+    appendChatMsg({id: `timeout-${Date.now()}`, type: 'progress', text: '(no response — agent may not be running)'});
+  }, 60000);
+}
+
+function _clearBusyTimer() {
+  clearTimeout(_busyTimer);
+  _busyTimer = null;
+}
+
+function toggleChat() {
+  document.getElementById('chat-panel').classList.toggle('collapsed');
+}
+
+function openChat(prefill) {
+  const panel = document.getElementById('chat-panel');
+  if (panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+  const input = document.getElementById('chat-input');
+  input.value = prefill || '';
+  input.focus();
+}
+
+async function directArchive(jobIds) {
+  const ids = Array.isArray(jobIds) ? jobIds : [jobIds];
+  try {
+    await Promise.all(ids.map(id => api('PATCH', `/api/jobs/${id}/archive`)));
+    if (_activeJobId && ids.includes(_activeJobId)) _activeJobId = null;
+    await loadJobs();
+    toast(ids.length > 1 ? `Archived ${ids.length} jobs` : 'Archived', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function directUnarchive(jobId) {
+  try {
+    await api('PATCH', `/api/jobs/${jobId}/unarchive`);
+    await loadJobs();
+    toast('Restored', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+const _companyCache = {};
+async function showCompanyTooltip(slug, el) {
+  const tip = document.getElementById('company-tooltip');
+  if (!slug) return;
+  let co = _companyCache[slug];
+  if (!co) {
+    try {
+      const data = await api('GET', `/api/companies/${slug}`);
+      co = data.meta;
+      _companyCache[slug] = co;
+    } catch { return; }
+  }
+  const metaLine = [co.industry, co.size, co.type].filter(Boolean).join(' · ');
+  const website = co.website ? `<a href="${esc(co.website)}" target="_blank" style="color:var(--blue)">${esc(co.website.replace(/https?:\/\//,''))}</a>` : '';
+  tip.innerHTML = `
+    <div class="ct-name">${esc(co.name || slug)}</div>
+    ${metaLine ? `<div class="ct-meta">${esc(metaLine)}${website ? ' · ' + website : ''}</div>` : ''}
+    ${co.notes ? `<div class="ct-notes">${esc(co.notes)}</div>` : '<div class="ct-notes" style="color:var(--text3)">No notes yet.</div>'}`;
+  const r = el.getBoundingClientRect();
+  const left = Math.min(r.left, window.innerWidth - 340);
+  const top  = r.bottom + 6;
+  tip.style.left = left + 'px';
+  tip.style.top  = top + 'px';
+  tip.style.display = 'block';
+}
+function hideCompanyTooltip() {
+  document.getElementById('company-tooltip').style.display = 'none';
+}
+
+function addToChat(handle) {
+  const panel = document.getElementById('chat-panel');
+  if (panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+  const input = document.getElementById('chat-input');
+  const cur = input.value.trimEnd();
+  input.value = cur ? cur + ' ' + handle : handle;
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+function triggerChat(cmd) {
+  openChat(cmd);
+}
+
+async function refreshActiveViews() {
+  try {
+    const data = await api('GET', '/api/jobs');
+    _jobsData = data;
+    renderJobsSidebar();
+    if (_activeJobId) viewJob(_activeJobId);
+  } catch(_) {}
+}
+
+async function resetConnection() {
+  const btn = document.getElementById('reset-btn');
+  btn.disabled = true;
+  btn.textContent = 'Resetting…';
+  _clearBusyTimer();
+  if (_chatSSE) { _chatSSE.close(); _chatSSE = null; }
+  _setConn('reconnecting');
+  updateChatStatus({state: 'idle'});
+  await api('POST', '/api/chat/reset', {}).catch(() => {});
+  await initChat();
+  btn.disabled = false;
+  btn.textContent = 'Reset';
+  toast('Connection reset');
+}
+
+function _setConn(state) {
+  const dot   = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  const tips = {
+    live:         'Connected to the server',
+    reconnecting: 'Reconnecting to the server…',
+    offline:      'Server is unreachable',
+  };
+  const tip = tips[state] || '';
+  dot.title   = tip;
+  label.title = tip;
+  if (state === 'live')              { dot.className = 'status-dot';      label.textContent = 'live'; }
+  else if (state === 'reconnecting') { dot.className = 'status-dot warn'; label.textContent = 'reconnecting…'; }
+  else                               { dot.className = 'status-dot off';  label.textContent = 'offline'; }
+}
+
+function connectSSE(sessionId) {
+  if (_chatSSE) { _chatSSE.close(); _chatSSE = null; }
+  _setConn('reconnecting');
+  _chatSSE = new EventSource(`/api/chat/stream?session_id=${encodeURIComponent(sessionId)}`);
+  _chatSSE.onopen  = () => _setConn('live');
+  _chatSSE.onmessage = e => {
+    try { handleSSEMsg(JSON.parse(e.data)); } catch(_) {}
+  };
+  _chatSSE.onerror = () => {
+    _chatSSE.close();
+    _chatSSE = null;
+    _setConn('reconnecting');
+    setTimeout(initChat, 4000);
+  };
+}
+
+function handleSSEMsg(msg) {
+  if (msg.type === 'clear') {
+    document.getElementById('chat-messages').innerHTML = '';
+    updateChatStatus({state: 'idle'});
+    return;
+  }
+  appendChatMsg(msg);
+  if (msg.type === 'done') {
+    _clearBusyTimer();
+    updateChatStatus({state: 'idle'});
+    refreshActiveViews();
+  } else if (msg.type === 'question') {
+    _clearBusyTimer();
+    updateChatStatus({state: 'waiting'});
+  } else if (msg.type === 'progress' || msg.type === 'response') {
+    _setBusyTimer();
+    updateChatStatus({state: 'busy', detail: msg.text});
+  }
+}
+
+function appendChatMsg(msg) {
+  const el = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${msg.type}`;
+  div.id = `cm-${msg.id}`;
+  if (msg.type === 'question') {
+    div.innerHTML = `<div>${esc(msg.text)}</div>
+      <div class="chat-question-actions">
+        <input class="chat-answer-input" type="text" placeholder="Your answer…" onkeydown="if(event.key==='Enter'){sendAnswer(this)}">
+        <button class="btn btn-primary btn-sm" onclick="sendAnswer(this.previousElementSibling)">Reply</button>
+      </div>`;
+  } else {
+    div.textContent = msg.text;
+  }
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function updateChatStatus(status) {
+  const dot   = document.getElementById('chat-status-dot');
+  const text  = document.getElementById('chat-status-text');
+  const input = document.getElementById('chat-input');
+  const btn   = document.getElementById('chat-send-btn');
+  dot.className = `chat-status-dot ${status.state}`;
+  if (status.state === 'idle') {
+    const tip = 'Claude is idle — type a command below to get started';
+    dot.title = tip; text.title = tip;
+    text.textContent = 'idle';
+    input.disabled = false; btn.disabled = false;
+    input.placeholder = 'Chat with Claude…';
+  } else if (status.state === 'busy') {
+    const tip = 'Claude is working — your command is being processed';
+    dot.title = tip; text.title = tip;
+    text.textContent = status.detail || 'working…';
+    input.disabled = true; btn.disabled = true;
+    input.placeholder = 'Claude is working…';
+  } else if (status.state === 'waiting') {
+    const tip = 'Claude asked a question — type your answer in the box above and hit Reply';
+    dot.title = tip; text.title = tip;
+    text.textContent = 'waiting for answer';
+    input.disabled = false; btn.disabled = false;
+    input.placeholder = "Answer Claude's question above…";
+  }
+}
+
+function _isBatch(text) {
+  const salaries  = (text.match(/\$\d[\d,]*[Kk]?\s*[-–]\s*\$?\d[\d,]*[Kk]?|\$\d+\/hr|\$\d+[Kk]\b/gi) || []).length;
+  const ratings   = (text.match(/\d\.\d\s*★/g) || []).length;
+  const easyApply = (text.match(/easy apply/gi) || []).length;
+  const signals   = salaries + ratings * 2 + easyApply;
+  return signals >= 3 && text.split('\n').filter(l => l.trim()).length >= 5;
+}
+
+function _batchJobCount(text) {
+  const s = (text.match(/\$\d[\d,]*[Kk]?\s*[-–]\s*\$?\d[\d,]*[Kk]?|\$\d+\/hr|\$\d+[Kk]\b/gi) || []).length;
+  const r = (text.match(/\d\.\d\s*★/g) || []).length;
+  return Math.max(s, r, 1);
+}
+
+function detectBatch(textarea) {
+  const hint = document.getElementById('chat-batch-hint');
+  const text = textarea.value;
+  if (text.length > 100 && _isBatch(text)) {
+    const n = _batchJobCount(text);
+    hint.textContent = `📋 Batch detected — ~${n} job${n !== 1 ? 's' : ''} · will ingest as list`;
+    hint.style.display = 'block';
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const isBatch = _isBatch(text);
+  input.value = '';
+  document.getElementById('chat-batch-hint').style.display = 'none';
+  appendChatMsg({id: `local-${Date.now()}`, type: 'user', text});
+  updateChatStatus({state: 'busy'});
+  _setBusyTimer();
+  try {
+    await api('POST', '/api/chat/send', { text, type: isBatch ? 'batch' : 'chat' });
+  } catch(e) {
+    _clearBusyTimer();
+    updateChatStatus({state: 'idle'});
+    toast(e.message, 'error');
+  }
+}
+
+function chatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+async function sendAnswer(inputEl) {
+  const text = inputEl.value.trim();
+  if (!text) return;
+  appendChatMsg({id: `local-${Date.now()}`, type: 'user', text});
+  try {
+    await api('POST', '/api/chat/send', { text, type: 'chat' });
+    inputEl.closest('.chat-question-actions').innerHTML =
+      `<span style="font-size:11px;color:var(--text3)">Answered: ${esc(text)}</span>`;
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function clearChat() {
+  // Kill all in-flight state
+  _clearBusyTimer();
+  if (_chatSSE) { _chatSSE.close(); _chatSSE = null; }
+
+  // Wipe the UI immediately — don't wait for server
+  document.getElementById('chat-messages').innerHTML = '';
+  updateChatStatus({state: 'idle'});
+
+  // Start a completely fresh session
+  await initChat();
+  toast('Chat cleared');
+}
+
+// ── RESUMES ───────────────────────────────────────────────────────────────────
+let _activeResume = null;
+
+async function loadResumes() {
+  try {
+    const data = await api('GET', '/api/resumes');
+    const sidebar = document.getElementById('resumes-sidebar');
+    const resumes = data.resumes || [];
+    if (!resumes.length) {
+      sidebar.innerHTML = '<div style="padding:16px;font-size:12px;color:var(--text3)">No resumes generated yet.<br>Use chat: <code>generate resume group A</code></div>';
+      return;
+    }
+    sidebar.innerHTML = `
+      <div class="pipeline-group-header">Generated <span class="sidebar-count">${resumes.length}</span></div>
+      <div class="job-list">
+        ${resumes.map(r => `
+          <button class="job-item${_activeResume === r.group ? ' active' : ''}" onclick="viewResume('${esc(r.group)}')">
+            <span class="job-item-title">${esc(r.label)}</span>
+            <span class="job-item-meta">${esc(r.modified?.slice(5,10) || '')}</span>
+          </button>`).join('')}
+      </div>`;
+    if (!_activeResume) viewResume(resumes[0].group);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function viewResume(group) {
+  _activeResume = group;
+  document.querySelectorAll('#resumes-sidebar .job-item').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick')?.includes(group));
+  });
+  const el = document.getElementById('resumes-content');
+  el.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const data = await api('GET', `/api/resumes/${group}`);
+    const label = 'Group ' + group.replace('group_', '').toUpperCase();
+    el.innerHTML = `
+      <div class="viewer-header">
+        <span class="viewer-title">${esc(label)} Resume</span>
+        <button class="btn btn-ghost btn-sm" onclick="openChat('regenerate resume group ${esc(group.replace('group_','').toUpperCase())}')">↻ Regenerate</button>
+      </div>
+      <div class="md-body">${marked.parse(data.content)}</div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function initChat() {
+  try {
+    const data = await api('POST', '/api/chat/session/start', {});
+    _sessionId = data.session_id;
+    connectSSE(_sessionId);
+  } catch(e) {}
+}
+
+async function boot() {
+  const tab = window.location.pathname.replace('/', '') || 'home';
+  const valid = ['home','jobs','applications','companies','strategy','resumes','settings'];
+  switchTab(valid.includes(tab) ? tab : 'home');
+  await initChat();
+}
+
+boot();
+</script>
+<div id="ctx-menu" class="ctx-menu" style="display:none"></div>
+<div id="company-tooltip"></div>
+</body>
+</html>

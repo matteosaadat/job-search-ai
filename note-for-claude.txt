@@ -1,0 +1,3 @@
+Drop text here when you can’t paste in the chat.
+Tell Claude: "check note-for-claude.txt"
+Claude reads it, acts on it, then clears or archives the content.

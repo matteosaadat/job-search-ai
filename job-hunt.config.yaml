@@ -1,0 +1,51 @@
+# Job Hunt System — Project Config
+# Copy this file and fill in your values. Never commit api-key.
+
+project: Job Hunt
+
+# All user data lives under this folder (relative to this config file)
+data-path: data-storage
+
+ai-providers:
+  claude:
+    provider: anthropic
+    model: claude-sonnet-4-6
+    api-key: YOUR_API_KEY_HERE
+ai-default: claude
+
+truth-path: truth
+blueprints-path: blueprints
+
+# Personal rules config path (relative to this file)
+rules-path: rules/config.yaml
+
+# Domains for master truth atoms (who you are, what you know)
+truth-domains:
+  - skills
+  - experience
+  - education
+  - goals
+  - constraints
+  - achievements
+
+# Domains for job description atoms (what jobs require)
+jd-domains:
+  - requirements
+  - responsibilities
+  - compensation
+  - culture
+  - company
+  - logistics
+
+# Resume groups
+resume-groups:
+  A: Full-Stack Engineering
+  B: Backend / API Engineering
+  C: AI Systems / ML Engineering
+  D: Technical Leadership / Architecture
+  E: Consulting / Fractional
+
+# Blueprint folder overrides (optional)
+# resumes-folder: blueprints/resumes
+# cover-letters-folder: blueprints/cover-letters
+# prep-docs-folder: blueprints/prep-docs

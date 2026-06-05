@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "job-hunt": {
+      "command": "python",
+      "args": ["-m", "src.core.mcp"],
+      "cwd": "C:\\Users\\matte\\Desktop\\projects\\portfolio-projects\\job-search-ai"
+    }
+  }
+}

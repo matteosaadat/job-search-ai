@@ -1,0 +1,42 @@
+{
+  "job_id": "2025-07-29-novify-senior-frontend",
+  "title": "Senior Frontend Developer",
+  "company": "Novify",
+  "date": "2025-07-29",
+  "location": "Remote (US)",
+  "compensation": "$150K/yr - $200K/yr",
+  "type": "Full-time",
+  "description": "Novify is partnering with a decentralized exchange to build an AI-native trading platform. The product is a conversational, mobile-first trading interface spanning crypto, equities, and more. This role leads development of elegant, secure, high-performance web interfaces for advanced trading features.",
+  "responsibilities": [
+    "Build fast, modern interfaces for advanced trading",
+    "Collaborate with design and backend teams for seamless user flows",
+    "Implement security-first practices",
+    "Integrate observability and performance monitoring"
+  ],
+  "requirements": [
+    "5+ years with React in production",
+    "3+ years with NextJS and isomorphic rendering",
+    "Strong command of Tailwind CSS",
+    "Deep frontend fundamentals",
+    "Bonus: Blockchain app or API design familiarity"
+  ],
+  "tech_keywords": [
+    "React",
+    "NextJS",
+    "Tailwind CSS",
+    "NodeJS",
+    "Sentry",
+    "Web3",
+    "Crypto",
+    "Trading",
+    "AI",
+    "Design Systems"
+  ],
+  "source_url": "https://www.linkedin.com/jobs/view/4270624164",
+  "contact": {
+    "name": "Angelica Ortega",
+    "title": "Founder | Web3 | Team Architect | Startups | Psychologist",
+    "linkedin": "https://www.linkedin.com/in/angelica-ortega"
+  },
+  "notes": "Zero-to-one product with AI focus. Strong match for React/Next/Tailwind skills. Web3 bonus optional. Design-forward, remote role. Easy Apply via LinkedIn."
+}

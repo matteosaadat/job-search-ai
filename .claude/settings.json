@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\matte\\Desktop\\projects\\portfolio-projects\\job-search-ai\\.jh\\watch_inbox.py\"",
+            "asyncRewake": true,
+            "rewakeMessage": "New job captured via extension or UI chat. Call jh_chat_listen to read and process the queued message.",
+            "timeout": 310
+          }
+        ]
+      }
+    ]
+  }
+}

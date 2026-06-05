@@ -1,0 +1,117 @@
+# GENERATED — do not edit directly.
+# Source of truth: data-storage/truth/rules/
+# To add a rule: call jh_ingest_rule_chip(domain, text)
+# To regenerate: call jh_synthesize_rules(domain)
+
+identity:
+  name: Mahdi Saadat
+  base_location: Hardwick, VT
+  citizenship: US Citizen
+
+availability:
+  current_contract_end: 2026-07-31
+  target_start: 2026-08-01
+  urgency_window_days: 60
+
+contract_preferences:
+  # Two independent multipliers — final score = type_mult × schedule_mult × 100
+  # contract 3d/wk=100, contract 5d/wk=80, employed 3d/wk=80, employed 5d/wk=64
+  type_multipliers:
+    contract: 1.0
+    fractional: 1.0     # fractional = contract relationship
+    part-time: 0.8      # employed part-time
+    full-time: 0.8      # employed full-time
+  schedule_multipliers:
+    3: 1.0              # 3 days/week — ideal
+    4: 0.9
+    5: 0.8              # 5 days/week — acceptable
+  implied_schedule_days:
+    full-time: 5
+    part-time: 3
+    fractional: 3
+    contract: 5         # conservative default when not stated
+  min_duration_months: 2
+  max_duration_months: 12
+  preferred_duration_months: [3, 4, 5, 6]
+
+rate:
+  annual_hours: 2000            # 50 working weeks (52 - 2 vacation)
+  ft_benefits_premium: 1.30    # full-time roles: multiply hourly equiv by 1.30 for total comp
+  min_hourly: 85
+  preferred_hourly: 120
+  group_overrides:
+    group_c: 120                # AI Systems — higher floor
+    group_d: 100
+
+location:
+  remote_first: true
+  willing_to_relocate: false
+  max_commute_minutes: 90       # willing to commute up to 1.5 hours for hybrid
+  onsite_negotiable_probability: 0.90   # most "onsite" SW postings accept hybrid when candidate is local
+  local_cities:
+    burlington:
+      state: VT
+      commute_minutes: 90       # nearest tech hub — at the edge of commute tolerance
+    montpelier:
+      state: VT
+      commute_minutes: 45       # state capital — comfortable commute
+  special_cities:
+    boston:
+      allowed: true
+      reason: sister lives there, can stay with her
+      conditions:
+        - short_term_only: true
+        - can_stay_with_sister: true
+        - hybrid_ok: true
+        - monthly_visit_ok: true
+  blacklisted_cities: []
+  blacklisted_states: []
+
+group_preferences:
+  primary: [A, B, C]
+  secondary: [D, E]
+  fallback: [Bridge]
+
+company_filters:
+  min_team_size: 3
+  blacklisted_companies: []
+  preferred_industries:
+    - SaaS
+    - AI/ML tooling
+    - PLM/enterprise software
+    - fintech
+    - healthtech
+  avoid_industries: []
+
+scoring_weights:
+  skill_match: 0.28
+  rate_match: 0.25
+  location_match: 0.20
+  contract_length_match: 0.14
+  timing_match: 0.08
+  freshness_match: 0.05
+
+# Fallback scores when a field is missing from the job posting.
+# These represent benefit-of-doubt defaults — tune them to reflect
+# how much you trust jobs that don't disclose a given field.
+missing_data_defaults:
+  rate_unknown: 65        # no rate listed — penalised slightly, could be anything
+  location_unknown: 65    # no remote policy stated — assume might be onsite
+  skills_unlisted: 75     # no required skills listed — neutral
+  timing_unknown: 75      # no availability context — neutral
+  freshness_unknown: 70   # no posted date — assume reasonably fresh
+
+# Score thresholds that drive the recommendation label.
+# Tune these after seeing enough scored jobs — if "apply" is too generous, raise it.
+recommendation_bands:
+  apply: 80
+  monitor: 65
+  stretch: 45
+  # below stretch → pass
+
+# How much freshness (recency of the job posting) penalises the score.
+freshness:
+  enabled: true
+  penalty_per_week: 5     # lose 5 points per week since posted
+  max_age_weeks: 12       # beyond 12 weeks score floors at 0
+  grace_period_days: 3    # 0–3 days old = 100 (fresh)
